@@ -1,1 +1,760 @@
-´ð¸´test
+/*      */ package com.eos.foundation.database;
+/*      */ 
+/*      */ import com.eos.common.connection.ConnectionHelper;
+/*      */ import com.eos.common.transaction.ITransactionManager;
+/*      */ import com.eos.common.transaction.TransactionManagerFactory;
+/*      */ import com.eos.das.entity.DASManager;
+/*      */ import com.eos.das.entity.IDASCriteria;
+/*      */ import com.eos.das.entity.IDASSession;
+/*      */ import com.eos.das.entity.LockType;
+/*      */ import com.eos.das.sql.INamedSqlSession;
+/*      */ import com.eos.foundation.data.DataObjectUtil;
+/*      */ import com.eos.foundation.eoscommon.LogUtil;
+/*      */ import com.eos.runtime.core.TraceLoggerFactory;
+/*      */ import com.eos.system.annotation.Bizlet;
+/*      */ import com.eos.system.exception.EOSRuntimeException;
+/*      */ import com.eos.system.logging.Logger;
+/*      */ import commonj.sdo.DataObject;
+/*      */ import commonj.sdo.Property;
+/*      */ import commonj.sdo.Type;
+/*      */ import java.lang.reflect.Array;
+/*      */ import java.sql.Connection;
+/*      */ import java.util.List;
+/*      */ 
+/*      */ @Bizlet("Database operating tools")
+/*      */ public class DatabaseUtil
+/*      */ {
+/*  536 */   private static final Logger logger = TraceLoggerFactory.getLogger(DatabaseUtil.class);
+/*      */ 
+/*      */   @Bizlet(value="Insert a record", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static void insertEntity(String dsName, DataObject dataObject)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  209 */     ITransactionManager txManager = TransactionManagerFactory.getTransactionManager();
+/*      */ 
+/*  211 */     txManager.begin(new int[0]);
+/*  212 */     Connection conn = null;
+/*  213 */     IDASSession session = null;
+/*      */     try {
+/*  215 */       conn = getConnection(dsName);
+/*  216 */       session = DASManager.createDasSession(conn);
+/*  217 */       session.insertEntity(dataObject);
+/*  218 */       closeConnection(session, conn);
+/*  219 */       txManager.commit();
+/*      */     } catch (Throwable e) {
+/*  221 */       closeConnection(session, conn);
+/*  222 */       txManager.rollback();
+/*  223 */       throw new EOSRuntimeException("24000040", e);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Batch insert record", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static void insertEntityBatch(String dsName, DataObject[] dataObjects)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  237 */     if ((dataObjects == null) || (dataObjects.length < 1))
+/*  238 */       return;
+/*  239 */     ITransactionManager txManager = TransactionManagerFactory.getTransactionManager();
+/*      */ 
+/*  241 */     txManager.begin(new int[0]);
+/*  242 */     Connection conn = null;
+/*  243 */     IDASSession session = null;
+/*      */     try {
+/*  245 */       conn = getConnection(dsName);
+/*  246 */       session = DASManager.createDasSession(conn);
+/*  247 */       session.insertEntityBatch(dataObjects);
+/*  248 */       closeConnection(session, conn);
+/*  249 */       txManager.commit();
+/*      */     } catch (Throwable e) {
+/*  251 */       closeConnection(session, conn);
+/*  252 */       txManager.rollback();
+/*  253 */       throw new EOSRuntimeException("24000041", e);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Update a record", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static void updateEntity(String dsName, DataObject dataObject)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  265 */     ITransactionManager txManager = TransactionManagerFactory.getTransactionManager();
+/*      */ 
+/*  267 */     txManager.begin(new int[0]);
+/*  268 */     Connection conn = null;
+/*  269 */     IDASSession session = null;
+/*      */     try {
+/*  271 */       conn = getConnection(dsName);
+/*  272 */       session = DASManager.createDasSession(conn);
+/*  273 */       session.updateEntity(dataObject);
+/*  274 */       closeConnection(session, conn);
+/*  275 */       txManager.commit();
+/*      */     } catch (Throwable e) {
+/*  277 */       closeConnection(session, conn);
+/*  278 */       txManager.rollback();
+/*  279 */       throw new EOSRuntimeException("24000042", e);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Batch update records", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static void updateEntityBatch(String dsName, DataObject[] dataObjects)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  293 */     if ((dataObjects == null) || (dataObjects.length < 1))
+/*  294 */       return;
+/*  295 */     ITransactionManager txManager = TransactionManagerFactory.getTransactionManager();
+/*      */ 
+/*  297 */     txManager.begin(new int[0]);
+/*  298 */     Connection conn = null;
+/*  299 */     IDASSession session = null;
+/*      */     try {
+/*  301 */       conn = getConnection(dsName);
+/*  302 */       session = DASManager.createDasSession(conn);
+/*  303 */       session.updateEntityBatch(dataObjects);
+/*  304 */       closeConnection(session, conn);
+/*  305 */       txManager.commit();
+/*      */     } catch (Throwable e) {
+/*  307 */       closeConnection(session, conn);
+/*  308 */       txManager.rollback();
+/*  309 */       throw new EOSRuntimeException("24000043", e);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Updata records according to the SDO template", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static int updateEntityByTemplate(String dsName, DataObject value, DataObject template)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  323 */     Connection conn = null;
+/*  324 */     IDASSession session = null;
+/*      */     try {
+/*  326 */       conn = getConnection(dsName);
+/*  327 */       session = DASManager.createDasSession(conn);
+/*  328 */       IDASCriteria criteria = DASManager.template2DASCriteria(template, session);
+/*      */ 
+/*  330 */       return session.update(value, criteria);
+/*      */     } finally {
+/*  332 */       closeConnection(session, conn);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Updata records according to the criteria entity", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static int updateEntityByCriteriaEntity(String dsName, DataObject value, DataObject criteriaEntity)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  347 */     Connection conn = null;
+/*  348 */     IDASSession session = null;
+/*      */     try {
+/*  350 */       conn = getConnection(dsName);
+/*  351 */       session = DASManager.createDasSession(conn);
+/*  352 */       IDASCriteria criteria = DASManager.queryForm2DASCriteria(criteriaEntity, session);
+/*      */ 
+/*  354 */       return session.update(value, criteria);
+/*      */     } finally {
+/*  356 */       closeConnection(session, conn);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Save a record", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static void saveEntity(String dsName, DataObject dataObject)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  368 */     ITransactionManager txManager = TransactionManagerFactory.getTransactionManager();
+/*      */ 
+/*  370 */     txManager.begin(new int[0]);
+/*  371 */     Connection conn = null;
+/*  372 */     IDASSession session = null;
+/*      */     try {
+/*  374 */       conn = getConnection(dsName);
+/*  375 */       session = DASManager.createDasSession(conn);
+/*  376 */       session.saveEntity(dataObject);
+/*  377 */       closeConnection(session, conn);
+/*  378 */       txManager.commit();
+/*      */     } catch (Throwable e) {
+/*  380 */       closeConnection(session, conn);
+/*  381 */       txManager.rollback();
+/*  382 */       throw new EOSRuntimeException("24000046", e);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value=" Save recoreds", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static void saveEntities(String dsName, DataObject[] dataObjects)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  395 */     if ((dataObjects == null) || (dataObjects.length < 1))
+/*  396 */       return;
+/*  397 */     ITransactionManager txManager = TransactionManagerFactory.getTransactionManager();
+/*      */ 
+/*  399 */     txManager.begin(new int[0]);
+/*  400 */     Connection conn = null;
+/*  401 */     IDASSession session = null;
+/*      */     try {
+/*  403 */       conn = getConnection(dsName);
+/*  404 */       session = DASManager.createDasSession(conn);
+/*  405 */       session.saveEntities(dataObjects);
+/*  406 */       closeConnection(session, conn);
+/*  407 */       txManager.commit();
+/*      */     } catch (Throwable e) {
+/*  409 */       closeConnection(session, conn);
+/*  410 */       txManager.rollback();
+/*  411 */       throw new EOSRuntimeException("24000047", e);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Delete a recored according to the primary key", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static void deleteEntity(String dsName, DataObject dataObject)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  423 */     ITransactionManager txManager = TransactionManagerFactory.getTransactionManager();
+/*      */ 
+/*  425 */     txManager.begin(new int[0]);
+/*  426 */     Connection conn = null;
+/*  427 */     IDASSession session = null;
+/*      */     try {
+/*  429 */       conn = getConnection(dsName);
+/*  430 */       session = DASManager.createDasSession(conn);
+/*  431 */       session.deleteEntity(dataObject);
+/*  432 */       closeConnection(session, conn);
+/*  433 */       txManager.commit();
+/*      */     } catch (Throwable e) {
+/*  435 */       closeConnection(session, conn);
+/*  436 */       txManager.rollback();
+/*  437 */       throw new EOSRuntimeException("24000044", e);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Batch delete recoreds according to the primary key", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static void deleteEntityBatch(String dsName, DataObject[] dataObjects)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  450 */     if ((dataObjects == null) || (dataObjects.length < 1))
+/*  451 */       return;
+/*  452 */     ITransactionManager txManager = TransactionManagerFactory.getTransactionManager();
+/*      */ 
+/*  454 */     txManager.begin(new int[0]);
+/*  455 */     Connection conn = null;
+/*  456 */     IDASSession session = null;
+/*      */     try {
+/*  458 */       conn = getConnection(dsName);
+/*  459 */       session = DASManager.createDasSession(conn);
+/*  460 */       session.deleteEntityBatch(dataObjects);
+/*  461 */       closeConnection(session, conn);
+/*  462 */       txManager.commit();
+/*      */     } catch (Throwable e) {
+/*  464 */       closeConnection(session, conn);
+/*  465 */       txManager.rollback();
+/*  466 */       throw new EOSRuntimeException("24000045", e);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Delete recoreds according to SDO template", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static int deleteByTemplate(String dsName, DataObject template)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  479 */     Connection conn = null;
+/*  480 */     IDASSession session = null;
+/*      */     try {
+/*  482 */       conn = getConnection(dsName);
+/*  483 */       session = DASManager.createDasSession(conn);
+/*  484 */       IDASCriteria criteria = DASManager.template2DASCriteria(template, session);
+/*      */ 
+/*  486 */       return session.delete(criteria);
+/*      */     } finally {
+/*  488 */       closeConnection(session, conn);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value=" Delete recoreds according to criteria entity", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static int deleteByCriteriaEntity(String dsName, DataObject criteriaEntity)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  501 */     Connection conn = null;
+/*  502 */     IDASSession session = null;
+/*      */     try {
+/*  504 */       conn = getConnection(dsName);
+/*  505 */       session = DASManager.createDasSession(conn);
+/*  506 */       IDASCriteria criteria = DASManager.queryForm2DASCriteria(criteriaEntity, session);
+/*      */ 
+/*  508 */       return session.delete(criteria);
+/*      */     } finally {
+/*  510 */       closeConnection(session, conn);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Query according to the dataObject", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static int expandEntity(String dsName, DataObject dataObject)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  523 */     Connection conn = null;
+/*  524 */     IDASSession session = null;
+/*      */     try {
+/*  526 */       conn = getConnection(dsName);
+/*  527 */       session = DASManager.createDasSession(conn);
+/*  528 */       if (session.expandEntity(dataObject))
+/*  529 */         return 1;
+/*      */     } finally {
+/*  531 */       closeConnection(session, conn);
+/*      */     }
+/*  533 */     return 0;
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Query  according to the  SDO template  and fill dataobject properties", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static int expandEntityByTemplate(String dsName, DataObject template, DataObject dataObject)
+/*      */   {
+/*  558 */     if (template == null) {
+/*  559 */       throw new EOSRuntimeException("24000030", new String[] { "template" });
+/*      */     }
+/*      */ 
+/*  562 */     if (dataObject == null) {
+/*  563 */       throw new EOSRuntimeException("24000030", new String[] { "dataObject" });
+/*      */     }
+/*      */ 
+/*  566 */     if (template.getType() == null) {
+/*  567 */       throw new EOSRuntimeException("24000030", new String[] { "template's type" });
+/*      */     }
+/*      */ 
+/*  570 */     if (!DataObjectUtil.checkEntityName(template, DataObjectUtil.getEntityName(dataObject)))
+/*      */     {
+/*  572 */       throw new EOSRuntimeException("24000052", new String[] { DataObjectUtil.getEntityName(template), DataObjectUtil.getEntityName(dataObject) });
+/*      */     }
+/*      */ 
+/*  577 */     DataObject[] dataObjects = queryEntitiesByTemplate(dsName, template, 0, 2);
+/*  578 */     int count = dataObjects.length;
+/*      */     DataObject tmp;
+/*      */     boolean checkIsSet;
+/*  579 */     if (count > 0) {
+/*  580 */       tmp = dataObjects[0];
+/*      */ 
+/*  582 */       checkIsSet = !"AnyType".equals(tmp.getType().getName());
+/*  583 */       List properties = tmp.getInstanceProperties();
+/*  584 */       for (Property property : properties) {
+/*  585 */         if (checkIsSet)
+/*      */         {
+/*  587 */           dataObject.set(property, tmp.get(property));
+/*      */         }
+/*      */         else {
+/*  590 */           dataObject.set(property, tmp.get(property));
+/*      */         }
+/*      */       }
+/*      */     }
+/*  594 */     if ((count > 1) && 
+/*  595 */       (logger.isWarnEnabled())) {
+/*  596 */       StringBuilder msg = new StringBuilder();
+/*  597 */       msg.append("ExpandEntityByTemplate result size greater than 1");
+/*  598 */       msg.append("\n");
+/*  599 */       msg.append("the template is");
+/*  600 */       msg.append("\n---------------------");
+/*  601 */       msg.append(template);
+/*  602 */       msg.append("\n---------------------");
+/*  603 */       logger.warn(msg.toString());
+/*      */     }
+/*      */ 
+/*  606 */     return count <= 1 ? count : -1;
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Query according to criteriaEntity and fill dataobject properties", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static int expandEntityByCriteriaEntity(String dsName, DataObject criteriaEntity, DataObject dataObject)
+/*      */   {
+/*  627 */     if (criteriaEntity == null) {
+/*  628 */       throw new EOSRuntimeException("24000030", new String[] { "criteriaEntity" });
+/*      */     }
+/*      */ 
+/*  631 */     if (dataObject == null) {
+/*  632 */       throw new EOSRuntimeException("24000030", new String[] { "dataObject" });
+/*      */     }
+/*      */ 
+/*  635 */     String queryEntityName = criteriaEntity.getString("_entity");
+/*  636 */     if (queryEntityName == null) {
+/*  637 */       throw new EOSRuntimeException("24000030", new String[] { "criteriaEntity's entity name" });
+/*      */     }
+/*      */ 
+/*  640 */     if (!DataObjectUtil.checkEntityName(dataObject, queryEntityName)) {
+/*  641 */       throw new EOSRuntimeException("24000052", new String[] { queryEntityName, DataObjectUtil.getEntityName(dataObject) });
+/*      */     }
+/*      */ 
+/*  645 */     DataObject[] dataObjects = queryEntitiesByCriteriaEntity(dsName, criteriaEntity, 0, 2);
+/*      */ 
+/*  647 */     int count = dataObjects.length;
+/*      */     DataObject tmp;
+/*      */     boolean checkIsSet;
+/*  648 */     if (count > 0) {
+/*  649 */       tmp = dataObjects[0];
+/*  650 */       checkIsSet = !"AnyType".equals(tmp.getType().getName());
+/*  651 */       List properties = tmp.getInstanceProperties();
+/*  652 */       for (Property property : properties) {
+/*  653 */         if (checkIsSet)
+/*      */         {
+/*  655 */           dataObject.set(property, tmp.get(property));
+/*      */         }
+/*      */         else {
+/*  658 */           dataObject.set(property, tmp.get(property));
+/*      */         }
+/*      */       }
+/*      */     }
+/*      */ 
+/*  663 */     if ((count > 1) && 
+/*  664 */       (logger.isWarnEnabled())) {
+/*  665 */       StringBuilder msg = new StringBuilder();
+/*  666 */       msg.append("ExpandEntityByCriteriaEntity result size greater than 1");
+/*      */ 
+/*  668 */       msg.append("\n");
+/*  669 */       msg.append("the criteria entity is");
+/*  670 */       msg.append("\n---------------------");
+/*  671 */       msg.append(criteriaEntity);
+/*  672 */       msg.append("\n---------------------");
+/*  673 */       logger.warn(msg.toString());
+/*      */     }
+/*      */ 
+/*  676 */     return count <= 1 ? count : -1;
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value=" Query and lock according to dataObject  and fill dataobject properties", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static void expandEntityWithLock(String dsName, DataObject dataObject)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  687 */     ITransactionManager txManager = TransactionManagerFactory.getTransactionManager();
+/*      */ 
+/*  689 */     txManager.begin(new int[0]);
+/*  690 */     boolean hasException = true;
+/*  691 */     Connection conn = null;
+/*  692 */     IDASSession session = null;
+/*      */     try {
+/*  694 */       conn = getConnection(dsName);
+/*  695 */       session = DASManager.createDasSession(conn);
+/*  696 */       session.expandEntityForUpdate(dataObject);
+/*  697 */       hasException = false;
+/*      */     } finally {
+/*  699 */       closeConnection(session, conn);
+/*  700 */       if (hasException)
+/*  701 */         rollback(txManager);
+/*      */       else
+/*  703 */         commit(txManager);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Query an association property of dataObject", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT), @com.eos.system.annotation.BizletParam(index=2, type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static void expandRelation(String dsName, DataObject dataObject, String property)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  718 */     Connection conn = null;
+/*  719 */     IDASSession session = null;
+/*      */     try {
+/*  721 */       conn = getConnection(dsName);
+/*  722 */       session = DASManager.createDasSession(conn);
+/*  723 */       session.expandRelation(dataObject, property);
+/*      */     } finally {
+/*  725 */       closeConnection(session, conn);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Query specified association property of all dataObjects in the array ", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT), @com.eos.system.annotation.BizletParam(index=2, type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static void expandEntitiesRelation(String dsName, DataObject[] dataObjects, String property)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  739 */     if ((dataObjects == null) || (dataObjects.length == 0))
+/*  740 */       return;
+/*  741 */     if ((property == null) || ("".equals(property.trim())))
+/*  742 */       return;
+/*  743 */     Connection conn = null;
+/*  744 */     IDASSession session = null;
+/*      */     try {
+/*  746 */       conn = getConnection(dsName);
+/*  747 */       session = DASManager.createDasSession(conn);
+/*  748 */       for (DataObject dataObject : dataObjects)
+/*  749 */         session.expandRelation(dataObject, property);
+/*      */     }
+/*      */     finally {
+/*  752 */       closeConnection(session, conn);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Get association entity  according to specified association property of  dataObject", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT), @com.eos.system.annotation.BizletParam(index=2, type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static DataObject getRelationEntity(String dsName, DataObject dataObject, String property)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  770 */     Connection conn = null;
+/*  771 */     IDASSession session = null;
+/*      */     try {
+/*  773 */       conn = getConnection(dsName);
+/*  774 */       session = DASManager.createDasSession(conn);
+/*  775 */       session.expandRelation(dataObject, property);
+/*  776 */       Object result = dataObject.get(property);
+/*  777 */       return convert2DataObject(result, 0);
+/*      */     } finally {
+/*  779 */       closeConnection(session, conn);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   private static DataObject convert2DataObject(Object object, int level) {
+/*  784 */     if (object == null)
+/*  785 */       return null;
+/*  786 */     if ((object instanceof DataObject))
+/*  787 */       return (DataObject)object;
+/*  788 */     if (level == 0) {
+/*  789 */       if ((object instanceof List)) {
+/*  790 */         List list = (List)object;
+/*  791 */         if (list.size() == 0) {
+/*  792 */           return null;
+/*      */         }
+/*  794 */         return convert2DataObject(list.get(0), level + 1);
+/*      */       }
+/*  796 */       if (object.getClass().isArray()) {
+/*  797 */         if (Array.getLength(object) == 0) {
+/*  798 */           return null;
+/*      */         }
+/*  800 */         return convert2DataObject(Array.get(object, 0), level + 1);
+/*      */       }
+/*      */     }
+/*      */ 
+/*  804 */     throw new IllegalArgumentException("cannot convert '" + object.getClass() + "' to DataObject.");
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Get association entity array according to specified association property of  dataObject", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT), @com.eos.system.annotation.BizletParam(index=2, type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static DataObject[] getRelationEntities(String dsName, DataObject dataObject, String property)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  823 */     Connection conn = null;
+/*  824 */     IDASSession session = null;
+/*      */     try {
+/*  826 */       conn = getConnection(dsName);
+/*  827 */       session = DASManager.createDasSession(conn);
+/*  828 */       session.expandRelation(dataObject, property);
+/*  829 */       Object relation = dataObject.get(property);
+/*      */       DataObject[] arrayOfDataObject1;
+/*  830 */       if ((relation instanceof List)) {
+/*  831 */         List list = (List)relation;
+/*  832 */         return (DataObject[])list.toArray(new DataObject[list.size()]);
+/*      */       }
+/*  834 */       if ((relation instanceof DataObject)) {
+/*  835 */         DataObject[] dataObjects = new DataObject[1];
+/*  836 */         dataObjects[0] = ((DataObject)relation);
+/*  837 */         return dataObjects;
+/*      */       }
+/*  839 */       throw new EOSRuntimeException("24000048", new String[] { property });
+/*      */     }
+/*      */     finally
+/*      */     {
+/*  843 */       closeConnection(session, conn);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Query according to SDO template", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static DataObject[] queryEntitiesByTemplate(String dsName, DataObject template)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  856 */     Connection conn = null;
+/*  857 */     IDASSession session = null;
+/*      */     try {
+/*  859 */       conn = getConnection(dsName);
+/*  860 */       session = DASManager.createDasSession(conn);
+/*  861 */       List list = session.query(DASManager.template2DASCriteria(template, session));
+/*      */ 
+/*  863 */       DataObject[] objs = new DataObject[0];
+/*  864 */       return (DataObject[])list.toArray(objs);
+/*      */     } finally {
+/*  866 */       closeConnection(session, conn);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Query specified number of records according to SDO template(Query all fileds of the entity)", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static DataObject[] queryEntitiesByTemplate(String dsName, DataObject template, int begin, int length)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  882 */     Connection conn = null;
+/*  883 */     IDASSession session = null;
+/*      */     try {
+/*  885 */       conn = getConnection(dsName);
+/*  886 */       session = DASManager.createDasSession(conn);
+/*  887 */       List list = session.query(DASManager.template2DASCriteria(template, session), begin, length);
+/*      */ 
+/*  889 */       DataObject[] objs = new DataObject[0];
+/*  890 */       return (DataObject[])list.toArray(objs);
+/*      */     } finally {
+/*  892 */       closeConnection(session, conn);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value=" Query according to  criteria Entity", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static DataObject[] queryEntitiesByCriteriaEntity(String dsName, DataObject criteriaEntity)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  905 */     ITransactionManager txManager = beginTxIfNecessary(criteriaEntity);
+/*  906 */     boolean hasException = true;
+/*  907 */     Connection conn = null;
+/*  908 */     IDASSession session = null;
+/*      */     try {
+/*  910 */       conn = getConnection(dsName);
+/*  911 */       session = DASManager.createDasSession(conn);
+/*  912 */       List list = session.query(DASManager.queryForm2DASCriteria(criteriaEntity, session));
+/*      */ 
+/*  914 */       DataObject[] res = (DataObject[])list.toArray(new DataObject[list.size()]);
+/*  915 */       hasException = false;
+/*  916 */       return res;
+/*      */     } finally {
+/*  918 */       closeConnection(session, conn);
+/*  919 */       if (hasException)
+/*  920 */         rollback(txManager);
+/*      */       else
+/*  922 */         commit(txManager);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value=" Query specified number of records according to criteriaEntity", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static DataObject[] queryEntitiesByCriteriaEntity(String dsName, DataObject criteriaEntity, int begin, int length)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  939 */     ITransactionManager txManager = beginTxIfNecessary(criteriaEntity);
+/*  940 */     boolean hasException = true;
+/*  941 */     Connection conn = null;
+/*  942 */     IDASSession session = null;
+/*      */     try {
+/*  944 */       conn = getConnection(dsName);
+/*  945 */       session = DASManager.createDasSession(conn);
+/*  946 */       List list = session.query(DASManager.queryForm2DASCriteria(criteriaEntity, session), begin, length);
+/*      */ 
+/*  949 */       DataObject[] res = (DataObject[])list.toArray(new DataObject[list.size()]);
+/*  950 */       hasException = false;
+/*  951 */       return res;
+/*      */     } finally {
+/*  953 */       closeConnection(session, conn);
+/*  954 */       if (hasException)
+/*  955 */         rollback(txManager);
+/*      */       else
+/*  957 */         commit(txManager);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Count the number of records that query according to criteria entity", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static int count(String dsName, DataObject criteriaEntity)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/*  971 */     ITransactionManager txManager = beginTxIfNecessary(criteriaEntity);
+/*  972 */     boolean hasException = true;
+/*  973 */     Connection conn = null;
+/*  974 */     IDASSession session = null;
+/*      */     try {
+/*  976 */       conn = getConnection(dsName);
+/*  977 */       session = DASManager.createDasSession(conn);
+/*  978 */       int res = session.count(DASManager.queryForm2DASCriteria(criteriaEntity, session));
+/*      */ 
+/*  980 */       hasException = false;
+/*  981 */       return res;
+/*      */     } finally {
+/*  983 */       closeConnection(session, conn);
+/*  984 */       if (hasException)
+/*  985 */         rollback(txManager);
+/*      */       else
+/*  987 */         commit(txManager);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value=" Count the number of records that query according to SDO template", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static int countByTemplate(String dsName, DataObject template)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/* 1001 */     Connection conn = null;
+/* 1002 */     IDASSession session = null;
+/*      */     try {
+/* 1004 */       conn = getConnection(dsName);
+/* 1005 */       session = DASManager.createDasSession(conn);
+/* 1006 */       return session.count(DASManager.queryForm2DASCriteria(DASManager.template2QueryForm(template), session));
+/*      */     }
+/*      */     finally {
+/* 1009 */       closeConnection(session, conn);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   @Bizlet(value="Get lob of entity", params={@com.eos.system.annotation.BizletParam(index=0, defaultValue="default", type=com.eos.system.annotation.ParamType.CONSTANT)})
+/*      */   public static void expandLobProperty(String dsName, DataObject entity, String lobPropertyNames)
+/*      */     throws EOSRuntimeException
+/*      */   {
+/* 1026 */     if (entity == null)
+/* 1027 */       return;
+/* 1028 */     if ((lobPropertyNames == null) || (lobPropertyNames.length() == 0))
+/* 1029 */       return;
+/* 1030 */     String[] lobPropertyNameArr = lobPropertyNames.split(",");
+/* 1031 */     Connection conn = null;
+/* 1032 */     IDASSession session = null;
+/*      */     try {
+/* 1034 */       conn = getConnection(dsName);
+/* 1035 */       session = DASManager.createDasSession(conn);
+/* 1036 */       for (String lobPropertyName : lobPropertyNameArr)
+/* 1037 */         session.expandLobProperty(entity, lobPropertyName);
+/*      */     } finally {
+/* 1039 */       closeConnection(session, conn);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   protected static Connection getConnection(String dsName)
+/*      */   {
+/* 1051 */     String value = dsName;
+/* 1052 */     if ((value == null) || (value.trim().equals(""))) {
+/* 1053 */       value = "default";
+/*      */     }
+/* 1055 */     return ConnectionHelper.getCurrentContributionConnection(value);
+/*      */   }
+/*      */ 
+/*      */   protected static void closeConnection(IDASSession session, Connection conn)
+/*      */   {
+/* 1064 */     if (session != null)
+/*      */       try {
+/* 1066 */         session.close();
+/*      */       } catch (Throwable e) {
+/* 1068 */         LogUtil.logI18NWarn("foundation_database0013", e, new Object[0]);
+/*      */       }
+/*      */     try
+/*      */     {
+/* 1072 */       if ((conn != null) && (!conn.isClosed()))
+/* 1073 */         conn.close();
+/*      */     } catch (Throwable e) {
+/* 1075 */       LogUtil.logI18NWarn("foundation_database0013", e, new Object[0]);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   protected static void closeConnection(INamedSqlSession session, Connection conn)
+/*      */   {
+/* 1085 */     if (session != null)
+/*      */       try {
+/* 1087 */         session.close();
+/*      */       } catch (Throwable e) {
+/* 1089 */         LogUtil.logI18NWarn("foundation_database0014", e, new Object[0]);
+/*      */       }
+/*      */     try
+/*      */     {
+/* 1093 */       if ((conn != null) && (!conn.isClosed()))
+/* 1094 */         conn.close();
+/*      */     } catch (Throwable e) {
+/* 1096 */       LogUtil.logI18NWarn("foundation_database0014", e, new Object[0]);
+/*      */     }
+/*      */   }
+/*      */ 
+/*      */   static ITransactionManager beginTxIfNecessary(DataObject criteriaEntity)
+/*      */   {
+/* 1104 */     ITransactionManager txManager = null;
+/* 1105 */     if (criteriaEntity == null) {
+/* 1106 */       return null;
+/*      */     }
+/* 1108 */     String lock = criteriaEntity.getString(12);
+/* 1109 */     if ((lock != null) && (
+/* 1110 */       (LockType.UPGRADE.equals(lock)) || (LockType.UPGRADE_NOWAIT.equals(lock))))
+/*      */     {
+/* 1112 */       txManager = TransactionManagerFactory.getTransactionManager();
+/* 1113 */       txManager.begin(new int[0]);
+/*      */     }
+/*      */ 
+/* 1116 */     return txManager;
+/*      */   }
+/*      */ 
+/*      */   static void commit(ITransactionManager txManager) {
+/* 1120 */     if (txManager != null)
+/* 1121 */       txManager.commit();
+/*      */   }
+/*      */ 
+/*      */   static void rollback(ITransactionManager txManager)
+/*      */   {
+/* 1126 */     if (txManager != null)
+/* 1127 */       txManager.rollback();
+/*      */   }
+/*      */ }
+
+/* Location:           E:\primeton\platform02\ide\eclipse\dropins\PLATFORM_7.2.0.0\plugins\com.primeton.studio.server.library_7.1.0.0\server\eos\com.eos.foundation.jar
+ * Qualified Name:     com.eos.foundation.database.DatabaseUtil
+ * JD-Core Version:    0.6.1
+ */
