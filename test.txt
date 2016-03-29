@@ -19,7 +19,7 @@
 /*      */ import commonj.sdo.Type;
 /*      */ import java.lang.reflect.Array;
 /*      */ import java.sql.Connection;
-/*      */ import java.util.List;
+/*      */ import java.util.List; 
 /*      */ 
 /*      */ @Bizlet("Database operating tools")
 /*      */ public class DatabaseUtil
